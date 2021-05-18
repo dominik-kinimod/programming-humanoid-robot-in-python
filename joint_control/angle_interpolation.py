@@ -22,6 +22,8 @@
 
 from pid import PIDAgent
 from keyframes import hello
+import numpy as np
+from keyframes import leftBackToStand
 
 
 class AngleInterpolationAgent(PIDAgent):
@@ -32,6 +34,8 @@ class AngleInterpolationAgent(PIDAgent):
                  sync_mode=True):
         super(AngleInterpolationAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.keyframes = ([], [], [])
+        
+        self.time = 0
 
     def think(self, perception):
         target_joints = self.angle_interpolation(self.keyframes, perception)
@@ -41,10 +45,29 @@ class AngleInterpolationAgent(PIDAgent):
     def angle_interpolation(self, keyframes, perception):
         target_joints = {}
         # YOUR CODE HERE
+        
+        names, times, keys = keyframes
+
+        if self.time == 0:
+            self.time = perception.time
+            
+        nowtime = perception.time - self.time
+
+        for name in range(len(names)):
+            for zeit in range(len(times[name])):
+                if zeit < len(times[name]) - 1 and times[name][zeit] < nowtime < times[name][zeit + 1]:
+                    t = (nowtime - times[name][zeit]) / (times[name][zeit + 1] - times[name][zeit])
+                    p0 = np.array([times[name][zeit], keys[name][zeit][0]])
+                    p1 = p0 + np.array([keys[name][zeit][1][1], keys[name][zeit][1][2]])
+                    p2 = p0 + np.array([keys[name][zeit][2][1], keys[name][zeit][2][2]])
+                    p3 = np.array([times[name][zeit + 1], keys[name][zeit + 1][0]])
+                    bez = (((1 - t) ** 3) * p0) + (3 * ((1 - t) ** 2) * t * p1) + (3 * (1 - t) * (t ** 2) * p2) + ((t ** 3) * p3)
+                    target_joints[names[name]] = bez[1]
 
         return target_joints
 
 if __name__ == '__main__':
     agent = AngleInterpolationAgent()
     agent.keyframes = hello()  # CHANGE DIFFERENT KEYFRAMES
+    #agent.keyframes = leftBackToStand()
     agent.run()
