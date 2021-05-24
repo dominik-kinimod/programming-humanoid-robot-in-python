@@ -20,7 +20,7 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'joint_control'))
 
-from numpy.matlib import matrix, identity
+from numpy.matlib import matrix, identity, sin, cos, dot
 
 from angle_interpolation import AngleInterpolationAgent
 
@@ -37,6 +37,11 @@ class ForwardKinematicsAgent(AngleInterpolationAgent):
         # chains defines the name of chain and joints of the chain
         self.chains = {'Head': ['HeadYaw', 'HeadPitch']
                        # YOUR CODE HERE
+                       ,
+                        'LArm': ['LShoulderPitch', 'LShoulderRoll' , 'LElbowYaw' , 'LElbowRoll'],
+                        'LLeg': ['LHipYawPitch', 'LHipRoll', 'LHipPitch', 'LKneePitch', 'LAnklePitch', 'LAnkleRoll'],
+                        'RLeg': ['RHipYawPitch', 'RHipRoll', 'RHipPitch', 'RKneePitch', 'RAnklePitch', 'RAnkleRoll'],
+                        'RArm': ['RShoulderPitch', 'RShoulderRoll', 'RElbowYaw', 'RElbowRoll']
                        }
 
     def think(self, perception):
@@ -53,6 +58,55 @@ class ForwardKinematicsAgent(AngleInterpolationAgent):
         '''
         T = identity(4)
         # YOUR CODE HERE
+        
+        s = sin(joint_angle)
+        c = cos(joint_angle)
+
+        motion = { 'HeadYaw' : [0.00, 0.00, 126.50],
+                   'HeadPitch' : [0.00, 0.00, 0.00],
+
+                   'LShoulderPitch' : [0.00, 98.00, 100.00],
+                   'LShoulderRoll' : [0.00, 0.00, 0.00],
+                   'LElbowYaw' : [105.00, 15.00, 0.00],
+                   'LElbowRoll' : [0.00, 0.00, 0.00],
+                   'LWristYaw' : [55.95, 0.00, 0.00],
+
+                   'RShoulderPitch' : [0.00, -98.00, 100.00],
+                   'RShoulderRoll' : [0.00, 0.00, 0.00],
+                   'RElbowYaw' : [105.00, -15.00, 0.00],
+                   'RElbowRoll' : [0.00, 0.00, 0.00],
+                   'RWristYaw' : [55.95, 0.00, 0.00],
+
+                   'LHipYawPitch' : [0.00, 50.00, -85.00],
+                   'LHipRoll' : [0.00, 0.00, 0.00],
+                   'LHipPitch' : [0.00, 0.00, 0.00],
+                   'LKneePitch' : [0.00, 0.00, -100.00],
+                   'LAnklePitch' : [0.00, 0.00, -102.90],
+                   'LAnkleRoll' : [0.00, 0.00, 0.00],
+
+                   'RHipYawPitch' : [0.00, -50.00, -85.00],
+                   'RHipRoll' : [0.00, 0.00, 0.00],
+                   'RHipPitch' : [0.00, 0.00, 0.00],
+                   'RKneePitch' : [0.00, 0.00, -100.00],
+                   'RAnklePitch' : [0.00, 0.00, -102.90],
+                   'RAnkleRoll' : [0.00, 0.00, 0.00]
+                   }
+        roll = [[1,0,0,0], [0,c,-s,0], [0,s,c,0], [0,0,0,1]]
+        pitch = [[c,0,s,0], [0,1,0,0], [-s,0,c,0], [0,0,0,1]]
+        yaw = [[c,s,0,0], [-s,c,0,0], [0,0,1,0], [0,0,0,1]]
+
+        if joint_name in ['LShoulderRoll', 'LElbowRoll', 'LHipRoll', 'LAnkleRoll', 'RShoulderRoll', 'RElbowRoll', 'RHipRoll', 'RAnkleRoll']:
+            T = roll
+        elif joint_name in ['HeadPitch', 'LShoulderPitch', 'LHipPitch', 'LKneePitch', 'LAnklePitch', 'RShoulderPitch', 'RHipPitch', 'RKneePitch', 'RAnklePitch']:
+            T = pitch
+        elif joint_name in ['HeadYaw', 'LElbowYaw', 'LWristYaw', 'RElbowYaw', 'RWristYaw']:
+            T = yaw
+        elif joint_name in ['LHipYawPitch', 'RHipYawPitch']:
+            T = dot(yaw, pitch)
+
+        T[0][3] = motion[joint_name][0]
+        T[1][3] = motion[joint_name][1]
+        T[2][3] = motion[joint_name][2]
 
         return T
 
@@ -67,6 +121,8 @@ class ForwardKinematicsAgent(AngleInterpolationAgent):
                 angle = joints[joint]
                 Tl = self.local_trans(joint, angle)
                 # YOUR CODE HERE
+                
+                T = T * Tl
 
                 self.transforms[joint] = T
 
